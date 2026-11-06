@@ -474,6 +474,83 @@ class FourierAnalysis:
         else:
             return self.ifftn(a_hat)
 
+    def apply_filter(self, data, filt, return_fft=False):
+        """
+        Apply a fixed-scale filter to a field by multiplication in
+        Fourier space: filtered_hat(k) = W_hat(k) * data_hat(k)
+        (Perrone et al. 2026, Eq. 46). This is the "bulk" or "filtered"
+        component of the field at the filter's scale; see
+        `decompose_filtered` to also get the residual ("turbulent")
+        component.
+
+        Parameters
+        ----------
+        data : ndarray or FFTArray
+            The field to filter, either real-space or already
+            Fourier-transformed, of shape `ddims` or (ndim, \\*ddims).
+        filt : KSpaceFilter
+            The filter kernel to apply.
+        return_fft : boolean, optional
+            If True, return the filtered field in Fourier space.
+            Default is False.
+        """
+        if filt.ndim != self.ndim:
+            raise ValueError(
+                f"Filter is {filt.ndim}-dimensional but this FourierAnalysis "
+                f"instance is {self.ndim}-dimensional!"
+            )
+        if not isinstance(data, FFTArray):
+            data = self.fftn(data)
+        else:
+            self._check_data(data)
+        filtered = FFTArray(data * filt(self.kmag), delta=self.delta)
+        if return_fft:
+            return filtered
+        else:
+            return self.ifftn(filtered)
+
+    def decompose_filtered(self, data, filt, return_fft=False):
+        """
+        Decompose a field into a filtered ("bulk") component and a
+        residual ("turbulent", fluctuating) component at a fixed filter
+        scale: f = <f>_ell + delta_f_ell, where <f>_ell is the output of
+        `apply_filter` (Perrone et al. 2026, Sec. 2).
+
+        Parameters
+        ----------
+        data : ndarray or FFTArray
+            The field to decompose, either real-space or already
+            Fourier-transformed, of shape `ddims` or (ndim, \\*ddims).
+        filt : KSpaceFilter
+            The filter kernel defining the scale of the decomposition.
+        return_fft : boolean, optional
+            If True, return both components in Fourier space.
+            Default is False.
+
+        Returns
+        -------
+        filtered : ndarray or FFTArray
+            The filtered ("bulk") component <f>_ell.
+        residual : ndarray or FFTArray
+            The residual ("turbulent") component f - <f>_ell.
+        """
+        if filt.ndim != self.ndim:
+            raise ValueError(
+                f"Filter is {filt.ndim}-dimensional but this FourierAnalysis "
+                f"instance is {self.ndim}-dimensional!"
+            )
+        if not isinstance(data, FFTArray):
+            data = self.fftn(data)
+        else:
+            self._check_data(data)
+        w = filt(self.kmag)
+        filtered = FFTArray(data * w, delta=self.delta)
+        residual = FFTArray(data * (1.0 - w), delta=self.delta)
+        if return_fft:
+            return filtered, residual
+        else:
+            return self.ifftn(filtered), self.ifftn(residual)
+
     def window_data(self, data, filter_function="tukey", **kwargs):
         """
         https://stackoverflow.com/questions/27345861/extending-1d-function-across-3-dimensions-for-data-windowing
