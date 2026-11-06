@@ -150,6 +150,59 @@ restore the per-component power lost by the projection, so the transverse
 field still has the same power spectrum $P(k)$ as an unprojected component.
 
 (vector-potentials-and-curl-inversion)=
+(fixed-scale-filtering)=
+## Fixed-scale filtering
+
+{class}`~kspace.GaussianFilter` and {class}`~kspace.TopHatFilter` implement
+the fixed-scale filtering framework of
+[Perrone et al. 2026](https://arxiv.org/abs/2601.06250) for splitting a
+field into a filtered ("bulk") component and a residual ("turbulent",
+fluctuating) component at a chosen physical scale $\ell$. Both subclass
+{class}`~kspace.filters.KSpaceFilter`, which fixes the convention shared by
+the two kernels: each is an isotropic, unit-integral real-space kernel
+$W_\ell(x)$, applied to a field by multiplication of its Fourier transform
+rather than a real-space convolution:
+
+$$
+\widehat{\langle f \rangle}_\ell(\mathbf{k}) = \hat{W}_\ell(k)\, \hat{f}(\mathbf{k})
+$$
+
+A filter instance is callable on an array of wavenumbers and returns
+$\hat{W}_\ell(k)$, normalized so that $\hat{W}_\ell(0) = 1$ — i.e. filtering
+preserves the field's mean. Because `kspace` already uses the $k = 2\pi f$
+convention throughout (see above), and $\hat{W}_\ell(k)$ is defined directly
+as a function of that same $k$, no extra factors are needed to multiply a
+filter's output onto an {class}`~kspace.FourierAnalysis` grid — construct a
+filter with the same `ndim` as the `FourierAnalysis` instance and pass it to
+{meth}`~kspace.FourierAnalysis.apply_filter` or
+{meth}`~kspace.FourierAnalysis.decompose_filtered`:
+
+```python
+from kspace import FourierAnalysis, GaussianFilter
+
+fa = FourierAnalysis(width, ddims)
+filt = GaussianFilter(length=50.0, ndim=3)  # filter scale in the same units as width
+
+filtered = fa.apply_filter(field, filt)  # <f>_ell, the "bulk" component
+filtered, residual = fa.decompose_filtered(field, filt)  # <f>_ell and f - <f>_ell
+```
+
+`apply_filter`/`decompose_filtered` raise `ValueError` if the filter's
+`ndim` doesn't match the `FourierAnalysis` instance's, since the two kernels
+are not interchangeable across dimensions.
+
+Two kernel shapes are provided, matching Perrone et al. 2026's Eqs. 4-5 and
+41-42:
+
+- {class}`~kspace.GaussianFilter`: $\hat{W}_\ell(k) = \exp(-k^2\ell^2/2)$.
+- {class}`~kspace.TopHatFilter`: a spherical (ball-of-radius-$\ell$) top
+  hat. `kspace` implements this with the general $n$-dimensional Bessel
+  form $\hat{W}_\ell(k) = \Gamma(n/2+1)\,(2/k\ell)^{n/2}\,J_{n/2}(k\ell)$,
+  which reduces to the paper's 3D expression
+  $\hat{W}_\ell(k) = 3\,j_1(k\ell)/(k\ell)$ (in terms of the spherical
+  Bessel function $j_1$) and generalizes it to 1D ($\mathrm{sinc}$) and 2D
+  ($J_1$) fields.
+
 ## Vector potentials and curl inversion
 
 Given a divergence-free vector field $\mathbf{B}$,

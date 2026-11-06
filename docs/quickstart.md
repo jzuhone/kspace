@@ -109,5 +109,23 @@ and solenoidal parts in Fourier space rather than differentiating in real
 space — see {doc}`conventions` for how they relate to `divergence_of_field`/
 `curl_of_field` and the choice of wavenumber (`diff_type`) they use.
 
+## Filtering a field at a fixed scale
+
+```python
+from kspace import GaussianFilter
+
+filt = GaussianFilter(length=50.0, ndim=3)  # a Gaussian kernel of scale 50 (box units)
+
+# <field>_ell, the filtered ("bulk") component
+bulk = fa.apply_filter(field, filt)
+
+# Or get both the filtered component and the residual ("turbulent") one
+bulk, turbulent = fa.decompose_filtered(field, filt)
+```
+
+See {doc}`conventions` for the fixed-scale filtering framework this
+implements and the choice of kernel ({class}`~kspace.GaussianFilter` vs.
+{class}`~kspace.TopHatFilter`).
+
 See {doc}`conventions` for the Fourier conventions this package uses, and
 {doc}`tutorials/index` for complete, runnable examples.

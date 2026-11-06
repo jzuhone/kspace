@@ -38,3 +38,16 @@
    FourierAnalysis
    fourier_analysis.FFTArray
 ```
+
+## Filters
+
+```{eval-rst}
+.. currentmodule:: kspace
+
+.. autosummary::
+   :toctree: generated
+
+   filters.KSpaceFilter
+   GaussianFilter
+   TopHatFilter
+```
